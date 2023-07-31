@@ -97,6 +97,7 @@ LOCAL_C_INCLUDES        := $(LOCAL_PATH)/src/common/android/include \
 
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)
 LOCAL_EXPORT_LDLIBS     := -llog
+LOCAL_CPPFLAGS += -std=c++17
 
 include $(BUILD_STATIC_LIBRARY)
 
