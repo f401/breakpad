@@ -59,7 +59,7 @@
 using google_breakpad::elf::FileID;
 
 #if defined(__ANDROID__)
-
+#include <android/log.h>
 // Android packed relocations definitions are not yet available from the
 // NDK header files, so we have to provide them manually here.
 #ifndef DT_LOOS
@@ -72,13 +72,16 @@ static const int DT_ANDROID_REL = DT_LOOS + 2;
 static const int DT_ANDROID_RELA = DT_LOOS + 4;
 #endif
 
+#define LOGD(MSG, ...) __android_log_print(ANDROID_LOG_DEBUG, "breakpad", MSG, ##__VA_ARGS__)
+#else
+#define LOGD(MSG, ...)
 #endif  // __ANDROID __
 
 static const char kMappedFileUnsafePrefix[] = "/dev/";
 static const char kDeletedSuffix[] = " (deleted)";
 
 inline static bool IsMappedFileOpenUnsafe(
-    const google_breakpad::MappingInfo& mapping) {
+        const google_breakpad::MappingInfo &mapping) {
   // It is unsafe to attempt to open a mapped file that lives under /dev,
   // because the semantics of the open may be driver-specific so we'd risk
   // hanging the crash dumper. And a file in /dev/ almost certainly has no
@@ -543,15 +546,21 @@ bool LinuxDumper::ReadAuxv() {
   return res;
 }
 
-bool LinuxDumper::EnumerateMappings() {
-  char maps_path[NAME_MAX];
-  if (!BuildProcPath(maps_path, pid_, "maps"))
-    return false;
 
-  // linux_gate_loc is the beginning of the kernel's mapping of
-  // linux-gate.so in the process.  It doesn't actually show up in the
-  // maps list as a filename, but it can be found using the AT_SYSINFO_EHDR
-  // aux vector entry, which gives the information necessary to special
+    static inline bool endsWith(const std::string &str, const std::string &suffix) {
+      return str.size() >= suffix.size() &&
+             0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+    }
+
+    bool LinuxDumper::EnumerateMappings() {
+      char maps_path[NAME_MAX];
+      if (!BuildProcPath(maps_path, pid_, "maps"))
+        return false;
+
+      // linux_gate_loc is the beginning of the kernel's mapping of
+      // linux-gate.so in the process.  It doesn't actually show up in the
+      // maps list as a filename, but it can be found using the AT_SYSINFO_EHDR
+      // aux vector entry, which gives the information necessary to special
   // case its entry when creating the list of mappings.
   // See http://www.trilithium.com/johan/2005/08/linux-gate/ for more
   // information.
@@ -606,7 +615,15 @@ bool LinuxDumper::EnumerateMappings() {
               continue;
             }
           }
-          MappingInfo* const module = new(allocator_) MappingInfo;
+          if (name != nullptr && !endsWith(name, ".so")) {
+            // In Android 5,
+            // /proc/pid/map contains some strange files,
+            // We need to remove it
+            LOGD("Rejecting lib: %s", name);
+            line_reader->PopLine(line_len);
+            continue;
+          }
+          MappingInfo *const module = new(allocator_) MappingInfo;
           mappings_.push_back(module);
           my_memset(module, 0, sizeof(MappingInfo));
           module->system_mapping_info.start_addr = start_addr;
@@ -733,7 +750,9 @@ void LinuxDumper::LatePostprocessMappings() {
   for (size_t i = 0; i < mappings_.size(); ++i) {
     // Only consider exec mappings that indicate a file path was mapped, and
     // where the ELF header indicates a mapped shared library.
-    MappingInfo* mapping = mappings_[i];
+    MappingInfo *mapping = mappings_[i];
+    LOGD("Mapping Name %s", mapping->name);
+    LOGD("Mapping start address %lu", mapping->start_addr);
     if (!(mapping->exec && mapping->name[0] == '/')) {
       continue;
     }
