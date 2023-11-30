@@ -59,7 +59,6 @@
 using google_breakpad::elf::FileID;
 
 #if defined(__ANDROID__)
-#include <android/log.h>
 // Android packed relocations definitions are not yet available from the
 // NDK header files, so we have to provide them manually here.
 #ifndef DT_LOOS
@@ -71,10 +70,6 @@ static const int DT_ANDROID_REL = DT_LOOS + 2;
 #ifndef DT_ANDROID_RELA
 static const int DT_ANDROID_RELA = DT_LOOS + 4;
 #endif
-
-#define LOGD(MSG, ...) __android_log_print(ANDROID_LOG_DEBUG, "breakpad", MSG, ##__VA_ARGS__)
-#else
-#define LOGD(MSG, ...)
 #endif  // __ANDROID __
 
 static const char kMappedFileUnsafePrefix[] = "/dev/";
@@ -619,7 +614,6 @@ bool LinuxDumper::ReadAuxv() {
             // In Android 5,
             // /proc/pid/map contains some strange files,
             // We need to remove it
-            LOGD("Rejecting lib: %s", name);
             line_reader->PopLine(line_len);
             continue;
           }
@@ -751,8 +745,6 @@ void LinuxDumper::LatePostprocessMappings() {
     // Only consider exec mappings that indicate a file path was mapped, and
     // where the ELF header indicates a mapped shared library.
     MappingInfo *mapping = mappings_[i];
-    LOGD("Mapping Name %s", mapping->name);
-    LOGD("Mapping start address %lu", mapping->start_addr);
     if (!(mapping->exec && mapping->name[0] == '/')) {
       continue;
     }
