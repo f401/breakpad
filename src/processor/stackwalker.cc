@@ -227,6 +227,30 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
                                            memory, modules, frame_symbolizer);
       break;
 
+      case MD_CONTEXT_AMD64:
+          cpu_stackwalker = new StackwalkerAMD64(system_info,
+                                                 context->GetContextAMD64(),
+                                                 memory, modules, frame_symbolizer);
+          break;
+      case MD_CONTEXT_ARM: {
+          int fp_register = -1;
+          if (system_info->os_short == "ios")
+              fp_register = MD_CONTEXT_ARM_REG_IOS_FP;
+          cpu_stackwalker = new StackwalkerARM(system_info,
+                                               context->GetContextARM(),
+                                               fp_register, memory, modules,
+                                               frame_symbolizer);
+          break;
+      }
+
+      case MD_CONTEXT_ARM64:
+          cpu_stackwalker = new StackwalkerARM64(system_info,
+                                                 context->GetContextARM64(),
+                                                 memory, modules,
+                                                 frame_symbolizer);
+          break;
+// Our app doesn't support these CPUs
+#ifndef ANDROID_LUA_BUILD
     case MD_CONTEXT_PPC:
       cpu_stackwalker = new StackwalkerPPC(system_info,
                                            context->GetContextPPC(),
@@ -239,11 +263,6 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
                                              memory, modules, frame_symbolizer);
       break;
 
-    case MD_CONTEXT_AMD64:
-      cpu_stackwalker = new StackwalkerAMD64(system_info,
-                                             context->GetContextAMD64(),
-                                             memory, modules, frame_symbolizer);
-      break;
 
     case MD_CONTEXT_SPARC:
       cpu_stackwalker = new StackwalkerSPARC(system_info,
@@ -258,24 +277,6 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
                                             memory, modules, frame_symbolizer);
       break;
 
-    case MD_CONTEXT_ARM:
-    {
-      int fp_register = -1;
-      if (system_info->os_short == "ios")
-        fp_register = MD_CONTEXT_ARM_REG_IOS_FP;
-      cpu_stackwalker = new StackwalkerARM(system_info,
-                                           context->GetContextARM(),
-                                           fp_register, memory, modules,
-                                           frame_symbolizer);
-      break;
-    }
-
-    case MD_CONTEXT_ARM64:
-      cpu_stackwalker = new StackwalkerARM64(system_info,
-                                             context->GetContextARM64(),
-                                             memory, modules,
-                                             frame_symbolizer);
-      break;
 
     case MD_CONTEXT_RISCV:
       cpu_stackwalker = new StackwalkerRISCV(system_info,
@@ -290,6 +291,7 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
                                                memory, modules,
                                                frame_symbolizer);
       break;
+#endif
   }
 
   BPLOG_IF(ERROR, !cpu_stackwalker) << "Unknown CPU type " << HexString(cpu) <<
